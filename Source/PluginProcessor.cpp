@@ -20,7 +20,7 @@ SimpleDelayAudioProcessor::SimpleDelayAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        ), treeState(*this, nullptr, juce::Identifier("PARAMETERS"),
-                           { std::make_unique<juce::AudioParameterFloat>("delayTime", "Delay (samples)", 0.f, 1000.f, 50.f),
+                           { std::make_unique<juce::AudioParameterFloat>("delayTime", "Delay (samples)", 0.f, 5000.f, 1000.f),
                              std::make_unique<juce::AudioParameterFloat>("feedback", "Feedback 0-1", 0.f, 0.99f, 0.3f) })
 #endif
 {
@@ -78,6 +78,7 @@ int SimpleDelayAudioProcessor::getNumPrograms()
 
 int SimpleDelayAudioProcessor::getCurrentProgram()
 {
+
     return 0;
 }
 
@@ -97,8 +98,37 @@ void SimpleDelayAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void SimpleDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    juce::dsp::ProcessSpec spec;
+
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.numChannels = getTotalNumOutputChannels();
+
+    // Note that in order to use this you will need to uncomment the following line
+    // Instantiates a new delayline with max size changed to sampleRate. You change to sampleRate * 2 or whatever you want
+    
+    mDelayLine = std::unique_ptr<juce::dsp::DelayLine<float>>(new juce::dsp::DelayLine<float>(sampleRate));
+    
+    // Not that if you use the above you will need to use -> instead of the . operator when accessing members functions of mDelayLine
+    // Example below
+  
+
+    mDelayLine->reset(); // Comment this line
+    //mDelayLine->reset(); // Uncomment this line (not change in access operator)
+    mDelayLine->prepare(spec);
+
+    mOscillator[0].reset();
+    mOscillator[1].reset();
+
+    mOscillator[0].prepare(spec);
+    mOscillator[1].prepare(spec);
+
+    mOscillator[0].initialise([](float x) { return std::sin(x); }, 128);
+    mOscillator[1].initialise([](float x) { return std::sin(x); }, 128);
+
+    mOscillator[0].setFrequency(0.2);
+    mOscillator[1].setFrequency(0.2);
+
 }
 
 void SimpleDelayAudioProcessor::releaseResources()
@@ -137,26 +167,28 @@ void SimpleDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         auto* channelData = buffer.getWritePointer (channel);
 
-        // ..do something to the data...
+        for (int i = 0; i < buffer.getNumSamples(); i++)
+        {
+            float in = channelData[i];
+            float lfoOut = mOscillator[channel].processSample(0.0f);
+
+            // Remap range from -1 to 1 to 100 samps to 500 samps
+            float delayMod = juce::jmap(lfoOut, -1.0f, 1.0f, 100.0f, 500.0f);
+
+            // Implement Two taps
+            float temp = mDelayLine->popSample(channel, mDelayTime + delayMod, false);
+            float temp2 = mDelayLine->popSample(channel, mDelayTime + 500 + delayMod, true); // Set to true to update read pointer
+
+            mDelayLine->pushSample(channel, in + (temp * mFeedback));
+            channelData[i] = (in + temp + temp2) * 0.33f;
+        }
     }
 }
 
@@ -195,5 +227,14 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 // Function called when parameter is changed
 void SimpleDelayAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
 {
+    if (parameterID == "delayTime")
+    {
+        mDelayTime = newValue;
+        mDelayLine->setDelay(newValue);
+    }
 
+    else if (parameterID == "feedback")
+    {
+        mFeedback = newValue;
+    }
 }

@@ -20,7 +20,7 @@ SimpleDelayAudioProcessorEditor::SimpleDelayAudioProcessorEditor (SimpleDelayAud
     // Delay time
     delayTimeValue = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(treeState, "delayTime", delayTimeSlider);
     delayTimeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-    delayTimeSlider.setRange(0.0f, 1000.0f, 1.0f);
+    delayTimeSlider.setRange(0.0f, 5000.0f, 1.0f);
     delayTimeSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxRight, true, 75, 25);
     addAndMakeVisible(&delayTimeSlider);
 
@@ -34,6 +34,7 @@ SimpleDelayAudioProcessorEditor::SimpleDelayAudioProcessorEditor (SimpleDelayAud
     feedbackSlider.setRange(0.0f, 0.99f, 0.01f);
     feedbackSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxRight, true, 75, 25);
     addAndMakeVisible(&feedbackSlider);
+
 
     addAndMakeVisible(feedbackLabel);
     feedbackLabel.setText("Feedback", juce::dontSendNotification);

@@ -59,7 +59,19 @@ public:
 private:
 
     juce::AudioProcessorValueTreeState treeState;
+    //juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> mDelayLine{ 22050 };
+    
+    // Alternative approach to setting up the delay line using a smart pointer
+    // This allows you to change max buffer size if there is e.g. a sampling rate change!
+    // If you want to try comment out the mDelayLine line above then uncomment the commented line below (already done)
+    // See also prepareToPlay() in PluginProcessor.cpp for addition changes
+    
+    std::unique_ptr< juce::dsp::DelayLine<float> > mDelayLine; // Smart pointer approach
 
+    juce::dsp::Oscillator<float> mOscillator[2];
+
+    float mDelayTime = 1000.0f;
+    float mFeedback = 0.3f;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleDelayAudioProcessor)
 };
