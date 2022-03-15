@@ -72,6 +72,9 @@ private:
 
     float mDelayTime = 1000.0f;
     float mFeedback = 0.3f;
+
+    // TEST
+    // 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleDelayAudioProcessor)
 };
